@@ -1,5 +1,5 @@
 [project]
-name = "agentframework"
+name = "BananaByte"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -13,7 +13,30 @@ dependencies = [
 ]
 
 
+[tool.pyright]
+pythonVersion = "3.13"
+
 [[tool.uv.index]]
 name = "tuna"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 default = true
+
+
+[tool.ruff]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "SIM", # flake8-simplify 
+    "RUF", # Ruff 专有规则
+    "ANN",
+]
+
+ignore = ["E501", "B008", "ANN002", "ANN003", "ANN401"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true

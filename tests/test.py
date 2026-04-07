@@ -1,7 +1,7 @@
 import base64
-from core import create_llm, Message
-from core.schemas import ImageContent, TextContent
 
+from core import Message, create_llm
+from core.schemas import ImageContent, TextContent
 
 img = ImageContent.from_file("test/test.jpg")
 

@@ -1,15 +1,21 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Literal, cast, overload
-from google.genai.types import HttpOptions
-from litellm import completion, ModelResponse
-from google import genai
-from dotenv import load_dotenv
-import os
 
-from core.schemas import Message, ImageContent, TextContent
+from dotenv import load_dotenv
+from google import genai
+from google.genai.types import HttpOptions
+from litellm import ModelResponse, completion
+
+from core.schemas import ImageContent, Message, TextContent
 
 
 class BaseLLM(ABC):
+    """LLM 基类, 定义统一的生成接口.
+
+    所有 LLM 实现都必须继承此类并实现 generate 方法.
+    """
+
     @abstractmethod
     def generate(
         self,
@@ -17,10 +23,25 @@ class BaseLLM(ABC):
         system_prompt: str | None = None,
         temperature: float = 0,
     ) -> Message:
+        """生成 LLM 响应.
+
+        Args:
+            messages: 消息列表, 包含对话历史.
+            system_prompt: 系统提示词, 用于设定 LLM 的行为模式.
+            temperature: 温度参数, 控制输出的随机性, 范围 [0, 2].
+
+        Returns:
+            Message: LLM 生成的响应消息.
+        """
         pass
 
 
 class OpenAILLM(BaseLLM):
+    """OpenAI 兼容的 LLM 实现.
+
+    支持 OpenAI API 及兼容的第三方 API (如 Azure OpenAI, Anthropic 等).
+    """
+
     def __init__(
         self,
         model: str,
@@ -28,6 +49,17 @@ class OpenAILLM(BaseLLM):
         base_url: str | None = None,
         timeout: float = 60,
     ) -> None:
+        """初始化 OpenAI LLM 客户端.
+
+        Args:
+            model: 模型名称, 如 "gpt-4", "gpt-3.5-turbo".
+            api_key: API 密钥. 如果为 None, 从环境变量 OPENAI_API_KEY 读取.
+            base_url: API 基础 URL. 如果为 None, 从环境变量 OPENAI_API_BASE 读取.
+            timeout: 请求超时时间, 单位是秒.
+
+        Raises:
+            ValueError: 当 API 密钥缺失时.
+        """
         super().__init__()
         self.model = model
         load_dotenv()
@@ -43,6 +75,16 @@ class OpenAILLM(BaseLLM):
         system_prompt: str | None = None,
         temperature: float = 0,
     ) -> Message:
+        """使用 OpenAI API 生成响应.
+
+        Args:
+            messages: 单个消息或消息列表, 包含对话历史.
+            system_prompt: 系统提示词. 如果提供, 会插入到消息列表开头.
+            temperature: 温度参数, 控制输出的随机性, 范围 [0, 2].
+
+        Returns:
+            Message: LLM 生成的响应消息, 角色为 "model".
+        """
         if isinstance(messages, Message):
             messages = [messages]
         openai_mess = [cast(dict, msg.to_openai_format()) for msg in messages]
@@ -65,6 +107,11 @@ class OpenAILLM(BaseLLM):
 
 
 class GeminiLLM(BaseLLM):
+    """Google Gemini LLM 实现.
+
+    支持 Google Gemini API, 包括文本生成和图像编辑功能.
+    """
+
     ImageRatio = Literal[
         "1:1",
         "1:4",
@@ -90,6 +137,17 @@ class GeminiLLM(BaseLLM):
         base_url: str | None = None,
         timeout: int = 120 * 1000,
     ) -> None:
+        """初始化 Gemini LLM 客户端.
+
+        Args:
+            model: 模型名称.
+            api_key: API 密钥. 如果为 None, 从环境变量 GEMINI_API_KEY 读取.
+            base_url: API 基础 URL. 如果为 None, 从环境变量 GEMINI_API_BASE 读取.
+            timeout: 请求超时时间, 单位是毫秒.
+
+        Raises:
+            ValueError: 当 API 密钥缺失时.
+        """
         super().__init__()
         self.model = model
         load_dotenv()
@@ -108,6 +166,16 @@ class GeminiLLM(BaseLLM):
         system_prompt: str | None = None,
         temperature: float = 1.0,
     ) -> Message:
+        """使用 Gemini API 生成响应.
+
+        Args:
+            messages: 单个消息或消息列表, 包含对话历史.
+            system_prompt: 系统指令, 用于设定 LLM 的行为模式.
+            temperature: 温度参数, 控制输出的随机性, 范围 [0, 2].
+
+        Returns:
+            Message: LLM 生成的响应消息, 角色为 "model".
+        """
         if isinstance(messages, Message):
             messages = [messages]
 
@@ -129,6 +197,20 @@ class GeminiLLM(BaseLLM):
         ratio: ImageRatio = "16:9",
         resolution: ImageResolution = "2k",
     ) -> Message:
+        """使用 Gemini API 编辑图像.
+
+        Args:
+            messages: 单个消息或消息列表, 必须包含至少一张图像.
+            temperature: 温度参数, 控制输出的随机性, 范围 [0, 2].
+            ratio: 输出图像的宽高比, 如 "16:9", "1:1".
+            resolution: 输出图像的分辨率, 如 "2k", "4k".
+
+        Returns:
+            Message: LLM 生成的响应消息, 可能包含文本和/或图像.
+
+        Raises:
+            ValueError: 当消息中没有图像时.
+        """
         if isinstance(messages, Message):
             messages = [messages]
         img_content: ImageContent | None = None
@@ -218,19 +300,18 @@ def create_llm(
     base_url: str | None = None,
     timeout: float | int | None = None,
 ) -> GeminiLLM | OpenAILLM:
-    """
-    统一的 LLM 工厂函数，根据模型名称或指定的提供商创建相应的 LLM 实例。
+    """统一的 LLM 工厂函数, 根据模型名称或指定的提供商创建相应的 LLM 实例.
 
     Args:
-        model: 模型名称（如 "gpt-4", "gemini-2.0-flash"）
-        provider: 显式指定提供商，可选 "openai" 或 "gemini"。
-                 如果不指定，将根据模型名称自动识别。
-        api_key: API 密钥，如果不提供则从环境变量读取
-        base_url: API 基础 URL，如果不提供则使用默认值
-        timeout: 请求超时时间（秒或毫秒，取决于提供商）
+        model: 模型名称 (如 "gpt-4", "gemini-2.0-flash").
+        provider: 显式指定提供商, 可选 "openai" 或 "gemini".
+                 如果不指定, 将根据模型名称自动识别.
+        api_key: API 密钥, 如果不提供则从环境变量读取.
+        base_url: API 基础 URL, 如果不提供则使用默认值.
+        timeout: 请求超时时间 (秒或毫秒, 取决于提供商).
 
     Returns:
-        GeminiLLM | OpenAILLM: 相应的 LLM 实例（OpenAILLM 或 GeminiLLM）
+        GeminiLLM | OpenAILLM: 相应的 LLM 实例 (OpenAILLM 或 GeminiLLM).
 
     Examples:
         # 自动识别提供商
@@ -249,14 +330,9 @@ def create_llm(
             timeout=30
         )
     """
-    # 如果没有显式指定提供商，根据模型名称自动识别
     if provider is None:
         model_lower = model.lower()
-        if "gemini" in model_lower:
-            provider = "gemini"
-        else:
-            # 默认使用 OpenAI（兼容大部分第三方 API）
-            provider = "openai"
+        provider = "gemini" if "gemini" in model_lower else "openai"
 
     # 根据提供商创建相应的 LLM 实例
     if provider == "gemini":
