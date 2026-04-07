@@ -312,23 +312,6 @@ def create_llm(
 
     Returns:
         GeminiLLM | OpenAILLM: 相应的 LLM 实例 (OpenAILLM 或 GeminiLLM).
-
-    Examples:
-        # 自动识别提供商
-        llm1 = create_llm("gpt-4")
-        llm2 = create_llm("gemini-2.0-flash")
-
-        # 显式指定提供商
-        llm3 = create_llm("gpt-4", provider="openai")
-        llm4 = create_llm("gemini-2.0-flash", provider="gemini")
-
-        # 自定义配置
-        llm5 = create_llm(
-            "gpt-4",
-            api_key="your-api-key",
-            base_url="https://api.custom.com",
-            timeout=30
-        )
     """
     if provider is None:
         model_lower = model.lower()

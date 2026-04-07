@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.12.5",
     "python-dotenv>=1.0.1",
     "rich>=14.3.3",
+    "ruff>=0.15.9",
 ]
 
 
@@ -23,20 +24,12 @@ default = true
 
 
 [tool.ruff]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "UP",  # pyupgrade
-    "N",   # pep8-naming
-    "SIM", # flake8-simplify 
-    "RUF", # Ruff 专有规则
-    "ANN",
-]
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "RUF", "ANN", "D"]
 
-ignore = ["E501", "B008", "ANN002", "ANN003", "ANN401"]
+ignore = ["E501", "B008", "ANN002", "ANN003", "ANN401", "D100", "D104", "D107"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
