@@ -17,3 +17,7 @@ for i in img:
     b64 = i.source
     with open("after.jpg", "wb") as f:
         f.write(base64.b64decode(b64))
+
+
+def fn():
+    print("hell0 world")

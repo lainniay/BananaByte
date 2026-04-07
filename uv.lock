@@ -143,6 +143,11 @@ dependencies = [
     { name = "ruff" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "ruff" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "google-genai", specifier = ">=1.70.0" },
@@ -152,6 +157,9 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "ruff", specifier = ">=0.15.9" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ruff", specifier = ">=0.15.9" }]
 
 [[package]]
 name = "certifi"
