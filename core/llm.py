@@ -21,7 +21,7 @@ class BaseLLM(ABC):
         self,
         messages: list[Message],
         system_prompt: str | None = None,
-        temperature: float = 0,
+        temperature: float = 1.0,
     ) -> Message:
         """生成 LLM 响应.
 
@@ -73,7 +73,7 @@ class OpenAILLM(BaseLLM):
         self,
         messages: Message | list[Message],
         system_prompt: str | None = None,
-        temperature: float = 0,
+        temperature: float = 1.0,
     ) -> Message:
         """使用 OpenAI API 生成响应.
 
@@ -303,7 +303,7 @@ def create_llm(
     """统一的 LLM 工厂函数, 根据模型名称或指定的提供商创建相应的 LLM 实例.
 
     Args:
-        model: 模型名称 (如 "gpt-4", "gemini-2.0-flash").
+        model: 模型名称.
         provider: 显式指定提供商, 可选 "openai" 或 "gemini".
                  如果不指定, 将根据模型名称自动识别.
         api_key: API 密钥, 如果不提供则从环境变量读取.

@@ -1,0 +1,77 @@
+name: Auto Create PR on Branch Push
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR if not exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const head = context.ref.replace('refs/heads/', '');
+            const base = context.payload.repository.default_branch;
+            const reviewer = 'lainniay';
+
+            if (head === base) {
+              core.info(`Skip: head branch (${head}) is default branch (${base}).`);
+              return;
+            }
+
+            const { data: existing } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${head}`,
+              base,
+            });
+
+            if (existing.length > 0) {
+              core.info(`Skip: PR already exists (#${existing[0].number}).`);
+              return;
+            }
+
+            const title = `Auto PR: ${head} -> ${base}`;
+            const body = [
+              'This PR was created automatically after a push to a branch.',
+              '',
+              `- Source branch: \`${head}\``,
+              `- Target branch: \`${base}\``,
+              `- Triggered by: @${context.actor}`,
+              `- Notified reviewer: @${reviewer}`,
+            ].join('\n');
+
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              title,
+              head,
+              base,
+              body,
+              maintainer_can_modify: true,
+            });
+
+            try {
+              await github.rest.pulls.requestReviewers({
+                owner,
+                repo,
+                pull_number: pr.data.number,
+                reviewers: [reviewer],
+              });
+              core.info(`Requested review from @${reviewer}.`);
+            } catch (error) {
+              core.warning(`Failed to request review from @${reviewer}: ${error.message}`);
+            }
+
+            core.info(`Created PR #${pr.data.number}: ${pr.data.html_url}`);
