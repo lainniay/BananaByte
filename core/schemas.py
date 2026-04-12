@@ -56,6 +56,28 @@ class ImageContent(BaseModel):
             data = base64.b64encode(f.read()).decode()
         return cls(source=data, mime_type=mime_type)
 
+    def save_to_file(self, path: str | Path) -> Path:
+        """将图像内容保存为文件.
+
+        Args:
+            path: 输出文件路径.
+
+        Returns:
+            Path: 保存后的文件路径.
+
+        Raises:
+            ValueError: 当 base64 数据无效时.
+        """
+        output_path = Path(path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            image_bytes = base64.b64decode(self.source)
+        except Exception as exc:
+            raise ValueError("图片 base64 数据无效") from exc
+        with open(output_path, "wb") as f:
+            f.write(image_bytes)
+        return output_path
+
 
 class TextContent(BaseModel):
     """文本内容模型.
@@ -79,7 +101,7 @@ class Message(BaseModel):
         content: 消息内容, 可以是字符串或内容列表 (TextContent/ImageContent).
     """
 
-    role: Literal["user", "model"] = "model"
+    role: Literal["user", "model"] = "user"
     content: str | list[TextContent | ImageContent]
 
     @property

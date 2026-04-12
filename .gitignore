@@ -5,6 +5,8 @@ dist/
 wheels/
 *.egg-info
 
+.obsidian/
+
 # Byte-compiled / optimized / DLL files
 *.py[codz]
 *$py.class
