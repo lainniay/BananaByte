@@ -405,7 +405,7 @@ def create_llm(
         )
     elif provider == "openai":
         # OpenAI 的 timeout 单位是秒
-        openai_timeout = float(timeout) if timeout is not None else 10.0
+        openai_timeout = float(timeout) if timeout is not None else 120
         return OpenAILLM(
             model=model,
             api_key=api_key,

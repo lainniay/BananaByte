@@ -49,6 +49,7 @@ ignore = [
     "D104",
     "D107",
     "RUF003",
+    "RUF001",
 ]
 
 per-file-ignores = { "tests/**/*" = ["D", "ANN"], "main.py" = ["D101", "D103"] }
