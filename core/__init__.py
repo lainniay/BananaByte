@@ -4,19 +4,19 @@
 """
 
 from core.llm import BaseLLM, GeminiLLM, OpenAILLM, create_llm
+from core.prompt import Prompt, PromptLib
 from core.schemas import ImageContent, Message, TextContent
 
 __version__ = "0.1.0"
 
 __all__ = [
-    # LLM 类
     "BaseLLM",
     "GeminiLLM",
     "ImageContent",
-    # 消息模型
     "Message",
     "OpenAILLM",
+    "Prompt",
+    "PromptLib",
     "TextContent",
-    # 工厂函数
     "create_llm",
 ]
