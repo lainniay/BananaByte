@@ -1,4 +1,4 @@
-from langsmith import Client
+import langsmith
 
 from core import create_llm
 from core.schemas import Message
@@ -8,7 +8,7 @@ llm = create_llm(model="openai/kimi-k2.5", provider="openai")
 
 mes = Message(role="user", content="hello")
 
-client = Client()
+client = langsmith.Client()
 
 res = llm.generate(mes).text
 print(res)
