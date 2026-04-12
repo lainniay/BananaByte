@@ -15,6 +15,7 @@ class ImageContent(BaseModel):
         type: 内容类型, 固定为 "image".
         source: base64 编码的图像数据.
         mime_type: MIME 类型, 如 "image/png", "image/jpeg".
+
     """
 
     type: Literal["image"] = "image"
@@ -78,7 +79,7 @@ class Message(BaseModel):
         content: 消息内容, 可以是字符串或内容列表 (TextContent/ImageContent).
     """
 
-    role: Literal["user", "model"]
+    role: Literal["user", "model"] = "model"
     content: str | list[TextContent | ImageContent]
 
     @property

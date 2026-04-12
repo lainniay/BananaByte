@@ -1,13 +1,43 @@
 import os
 from abc import ABC, abstractmethod
-from typing import Literal, cast, overload
+from typing import Any, Literal, cast, overload
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai.types import HttpOptions
+from langsmith import traceable
 from litellm import ModelResponse, completion
 
 from core.schemas import ImageContent, Message, TextContent
+
+
+def _process_llm_inputs(inputs: dict[str, Any]) -> dict[str, Any]:
+    """将 trace 输入转换为 LangSmith 兼容的 OpenAI 消息格式."""
+    messages = inputs.get("messages", [])
+    system_prompt = inputs.get("system_prompt")
+
+    if isinstance(messages, Message):
+        messages = [messages]
+
+    openai_messages: list[dict[str, Any]] = []
+    if isinstance(system_prompt, str) and system_prompt:
+        openai_messages.append({"role": "system", "content": system_prompt})
+
+    if isinstance(messages, list):
+        for message in messages:
+            if isinstance(message, Message):
+                openai_messages.append(cast(dict[str, Any], message.to_openai_format()))
+            elif isinstance(message, dict):
+                openai_messages.append(message)
+
+    return {"messages": openai_messages}
+
+
+def _process_llm_outputs(output: Any) -> dict[str, Any]:
+    """将 trace 输出转换为 LangSmith 兼容的 OpenAI 响应格式."""
+    if isinstance(output, Message):
+        return cast(dict[str, Any], output.to_openai_format())
+    return {"output": output}
 
 
 class BaseLLM(ABC):
@@ -85,6 +115,20 @@ class OpenAILLM(BaseLLM):
         Returns:
             Message: LLM 生成的响应消息, 角色为 "model".
         """
+        return self._generate_traced(messages, system_prompt, temperature)
+
+    @traceable(
+        run_type="llm",
+        name="OpenAILLM.generate",
+        process_inputs=_process_llm_inputs,
+        process_outputs=_process_llm_outputs,
+    )
+    def _generate_traced(
+        self,
+        messages: Message | list[Message],
+        system_prompt: str | None = None,
+        temperature: float = 1.0,
+    ) -> Message:
         if isinstance(messages, Message):
             messages = [messages]
         openai_mess = [cast(dict, msg.to_openai_format()) for msg in messages]
@@ -176,6 +220,20 @@ class GeminiLLM(BaseLLM):
         Returns:
             Message: LLM 生成的响应消息, 角色为 "model".
         """
+        return self._generate_traced(messages, system_prompt, temperature)
+
+    @traceable(
+        run_type="llm",
+        name="GeminiLLM.generate",
+        process_inputs=_process_llm_inputs,
+        process_outputs=_process_llm_outputs,
+    )
+    def _generate_traced(
+        self,
+        messages: Message | list[Message],
+        system_prompt: str | None = None,
+        temperature: float = 1.0,
+    ) -> Message:
         if isinstance(messages, Message):
             messages = [messages]
 
@@ -194,8 +252,8 @@ class GeminiLLM(BaseLLM):
         self,
         messages: Message | list[Message],
         temperature: float = 1.0,
-        ratio: ImageRatio = "16:9",
-        resolution: ImageResolution = "2k",
+        ratio: None | ImageRatio = None,
+        resolution: None | ImageResolution = None,
     ) -> Message:
         """使用 Gemini API 编辑图像.
 
@@ -211,6 +269,21 @@ class GeminiLLM(BaseLLM):
         Raises:
             ValueError: 当消息中没有图像时.
         """
+        return self._edit_image_traced(messages, temperature, ratio, resolution)
+
+    @traceable(
+        run_type="llm",
+        name="GeminiLLM.edit_image",
+        process_inputs=_process_llm_inputs,
+        process_outputs=_process_llm_outputs,
+    )
+    def _edit_image_traced(
+        self,
+        messages: Message | list[Message],
+        temperature: float = 1.0,
+        ratio: None | ImageRatio = None,
+        resolution: None | ImageResolution = None,
+    ) -> Message:
         if isinstance(messages, Message):
             messages = [messages]
         img_content: ImageContent | None = None
@@ -225,16 +298,24 @@ class GeminiLLM(BaseLLM):
 
         gemini_mes = [item.to_gemini_format() for item in messages]
 
+        config_kwargs: dict[str, Any] = {
+            "temperature": temperature,
+            "response_modalities": ["IMAGE"],
+        }
+        image_config_kwargs: dict[str, Any] = {}
+        if ratio is not None:
+            image_config_kwargs["aspect_ratio"] = ratio
+        if resolution is not None:
+            image_config_kwargs["image_size"] = resolution
+        if image_config_kwargs:
+            config_kwargs["image_config"] = genai.types.ImageConfig(
+                **image_config_kwargs
+            )
+
         res = self.client.models.generate_content(
             model=self.model,
             contents=gemini_mes,
-            config=genai.types.GenerateContentConfig(
-                temperature=temperature,
-                response_modalities=["TEXT", "IMAGE"],
-                image_config=genai.types.ImageConfig(
-                    aspect_ratio=ratio, image_size=resolution
-                ),
-            ),
+            config=genai.types.GenerateContentConfig(**config_kwargs),
         )
 
         contents: list[TextContent | ImageContent] = []
@@ -251,11 +332,6 @@ class GeminiLLM(BaseLLM):
                         contents.append(
                             ImageContent(source=img_data, mime_type=mime_type)
                         )
-                elif hasattr(part, "text") and part.text:
-                    contents.append(TextContent(text=part.text))
-
-        if len(contents) == 1 and isinstance(contents[0], TextContent):
-            return Message(role="model", content=contents[0].text)
 
         if not contents:
             return Message(role="model", content="")
