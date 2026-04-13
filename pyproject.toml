@@ -10,11 +10,13 @@ dependencies = [
     "huggingface-hub[cli]>=1.9.0",
     "langsmith>=0.7.30",
     "litellm>=1.83.3",
+    "opencv-python>=4.13.0.92",
     "pydantic>=2.12.5",
     "python-dotenv>=1.0.1",
     "pyyaml>=6.0.3",
     "rich>=14.3.3",
     "ruff>=0.15.9",
+    "scikit-image>=0.26.0",
 ]
 
 [build-system]
