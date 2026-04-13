@@ -109,10 +109,24 @@ def test_prompt_lib_invalid_directory() -> None:
             assert "目录不存在" in str(error)
 
 
+def test_json_content_not_template_variable() -> None:
+    prompt = Prompt(
+        name="json_demo",
+        template='请输出 JSON: {"type": "summary", "user": "{name}", "count": 2}',
+    )
+
+    assert prompt.variables == ["name"]
+    assert (
+        prompt.render(name="Alice")
+        == '请输出 JSON: {"type": "summary", "user": "Alice", "count": 2}'
+    )
+
+
 if __name__ == "__main__":
     test_variables_and_render()
     test_from_file_without_front_matter()
     test_from_file_with_front_matter()
     test_prompt_lib()
     test_prompt_lib_invalid_directory()
+    test_json_content_not_template_variable()
     print("testPrompt passed")
