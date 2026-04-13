@@ -1,9 +1,10 @@
 import re
 from pathlib import Path
-from string import Formatter
 from typing import Self
 
 from pydantic import BaseModel
+
+_VAR_RE = re.compile(r"\{([a-zA-Z_]\w*)\}")
 
 
 class Prompt(BaseModel):
@@ -23,8 +24,9 @@ class Prompt(BaseModel):
         """
         seen: set[str] = set()
         variables: list[str] = []
-        for _, field_name, _, _ in Formatter().parse(self.template):
-            if not field_name or field_name in seen:
+        for match in _VAR_RE.finditer(self.template):
+            field_name = match.group(1)
+            if field_name in seen:
                 continue
             seen.add(field_name)
             variables.append(field_name)
@@ -52,7 +54,12 @@ class Prompt(BaseModel):
             )
 
         payload = {key: value for key, value in kwargs.items() if key in required_set}
-        return self.template.format_map(payload)
+
+        def _replace(match: re.Match[str]) -> str:
+            field_name = match.group(1)
+            return payload.get(field_name, match.group(0))
+
+        return _VAR_RE.sub(_replace, self.template)
 
     @classmethod
     def from_file(cls, path: str | Path) -> Self:
