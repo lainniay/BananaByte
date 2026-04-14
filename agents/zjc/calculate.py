@@ -19,7 +19,7 @@ def calculate_uciqe(
     if crop_border > 0:
         img = img[crop_border:-crop_border, crop_border:-crop_border, ...]
 
-    img_bgr = img if img.shape[2] == 3 else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)  # noqa: PLR2004
+    img_bgr = img if img.shape[2] == 3 else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     img_lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
     coe_metric = [0.4680, 0.2745, 0.2576]
@@ -38,8 +38,8 @@ def calculate_uciqe(
     nbins = 256 if dtype == "uint8" else 65536
     hist, _ = np.histogram(img_lum, nbins)
     cdf = np.cumsum(hist) / np.sum(hist)
-    ilow = np.where(cdf > 0.01)[0]  # noqa: PLR2004
-    ihigh = np.where(cdf >= 0.99)[0]  # noqa: PLR2004
+    ilow = np.where(cdf > 0.01)[0]
+    ihigh = np.where(cdf >= 0.99)[0]
     con_lum = (
         0.0
         if (len(ilow) == 0 or len(ihigh) == 0)
@@ -170,7 +170,7 @@ def calculate_uiqm(
     img: np.ndarray,
     crop_border: int = 0,
     input_order: str = "HWC",
-    return_submetrics: bool = False,  # noqa: FBT001, FBT002
+    return_submetrics: bool = False,
 ) -> float | tuple[float, float, float, float]:
     """Calculate the UIQM metric for an image."""
     if input_order == "CHW":
@@ -178,7 +178,7 @@ def calculate_uiqm(
     if crop_border > 0:
         img = img[crop_border:-crop_border, crop_border:-crop_border, ...]
 
-    if img.shape[2] != 3:  # noqa: PLR2004
+    if img.shape[2] != 3:
         img = np.stack([img[..., 0]] * 3, axis=-1)
 
     img = img.astype(np.float32)
