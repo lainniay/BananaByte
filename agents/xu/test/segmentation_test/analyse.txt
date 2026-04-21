@@ -1,0 +1,6 @@
+[
+  {"box_2d": [272, 369, 611, 747], "label": "the main object, a green potted plant in a white pot"},
+  {"box_2d": [1, 23, 831, 467], "label": "the reflective layer, a glass pane showing a reflection of an office room"}
+]
+
+比例值
