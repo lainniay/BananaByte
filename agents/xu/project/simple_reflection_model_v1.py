@@ -99,7 +99,7 @@ class VisualReflectionAgent:
 
             bg_critique = self._get_expert_feedback(
                 edit_response,
-                "你是一位背景审查专家。检查背景衔接是否自然，是否有不该出现的反射物。请用方位词描述问题，若完美请回‘无需改进’。",
+                "你是一位背景融合审查专家。检查主体是否突出，背景是否自然合理，是否有不该出现的反射物。请用方位词描述问题，若完美请回‘无需改进’。",
             )
 
             obj_critique = self._get_expert_feedback(
@@ -253,7 +253,7 @@ def main() -> None:
 
     # 4. 运行 Agent
     agent = VisualReflectionAgent(
-        image_client=image_llm, critic_client=critic_llm, max_iterations=2
+        image_client=image_llm, critic_client=critic_llm, max_iterations=5
     )
 
     task = "移除图片背景中不自然的反射光斑，并让阴影衔接更加柔和。"

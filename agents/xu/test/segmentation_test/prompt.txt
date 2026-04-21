@@ -1,0 +1,7 @@
+Detect the main object and the possible reflective layer. 
+Output a JSON list of segmentation masks 
+where each entry contains the 2D bounding box in the key \"box_2d\", 
+the segmentation mask in key \"mask\", and the text label in the key \"label\". 
+Use descriptive labels.
+
+//应该呈矩形？
