@@ -6,10 +6,10 @@ You are an expert prompt generator specializing in underwater image restoration,
 
 - **Target Model:** Nano Banana is a text-prompt-based image editing model capable of editing images strictly according to the English prompts you provide.
 - **Core Issues:** The central challenges in underwater image restoration are:
-    
-    - Color Distortion
-    - Contrast Reduction
-	    - Texture Blurring
+
+  - Color Distortion
+  - Contrast Reduction
+  - Texture Blurring
 
 # Memory
 
