@@ -9,17 +9,17 @@ from pydantic import BaseModel
 class ImageContent(BaseModel):
     """图像内容模型.
 
-    使用 base64 编码存储图像数据.
+    使用二进制存储图像数据.
 
     Attributes:
         type: 内容类型, 固定为 "image".
-        source: base64 编码的图像数据.
+        source: 图片的二进制数据.
         mime_type: MIME 类型, 如 "image/png", "image/jpeg".
 
     """
 
     type: Literal["image"] = "image"
-    source: str
+    source: bytes
     mime_type: str = "image/png"
 
     @classmethod
@@ -33,7 +33,7 @@ class ImageContent(BaseModel):
         Returns:
             ImageContent: 图像内容实例.
         """
-        return cls(source=data, mime_type=mime_type)
+        return cls(source=base64.b64decode(data), mime_type=mime_type)
 
     @classmethod
     def from_file(cls, path: str | Path) -> Self:
@@ -53,7 +53,7 @@ class ImageContent(BaseModel):
         if not mime_type:
             raise ValueError(f"无法从{path}中读取文件类型")
         with open(path, "rb") as f:
-            data = base64.b64encode(f.read()).decode()
+            data = f.read()
         return cls(source=data, mime_type=mime_type)
 
     def save_to_file(self, path: str | Path) -> Path:
@@ -64,18 +64,11 @@ class ImageContent(BaseModel):
 
         Returns:
             Path: 保存后的文件路径.
-
-        Raises:
-            ValueError: 当 base64 数据无效时.
         """
         output_path = Path(path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            image_bytes = base64.b64decode(self.source)
-        except Exception as exc:
-            raise ValueError("图片 base64 数据无效") from exc
         with open(output_path, "wb") as f:
-            f.write(image_bytes)
+            f.write(self.source)
         return output_path
 
 
@@ -178,7 +171,7 @@ class Message(BaseModel):
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:{item.mime_type};base64,{item.source}"
+                            "url": f"data:{item.mime_type};base64,{base64.b64encode(item.source).decode('utf-8')}"
                         },
                     }
                 )
