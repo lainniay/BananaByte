@@ -1,16 +1,44 @@
-import base64
 import json
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
 import cv2
 import numpy as np
+from pydantic import BaseModel, Field
 
 from agents.zjc.calculate import calculate_uciqe, calculate_uiqm
-from core.llm import GeminiLLM, OpenAILLM, create_llm
+from core.llm import GeminiLLM, OpenAILLM
 from core.prompt import PromptLib
 from core.schemas import ImageContent, Message, TextContent
+
+
+class AnalyzeOutput(BaseModel):
+    """AnalyzeOutput."""
+
+    target: str
+    nano_banana_prompt: str
+
+
+class EvaluateOutput(BaseModel):
+    """EvaluateOutput."""
+
+    artifact_score: float = Field(description="Score for artifacts")
+    over_adjustment_score: float = Field(description="Score for over-adjustment")
+    color_accuracy_score: float = Field(description="Score for color accuracy")
+    structural_integrity_score: float = Field(
+        description="Score for structural integrity"
+    )
+    overall_score: float = Field(description="Overall score")
+    should_continue: bool = Field(description="Whether the restoration should continue")
+
+
+class ReflectOutput(BaseModel):
+    """ReflectOutput."""
+
+    decision: str = Field(description="'continue' or 'done'")
+    memory: str = Field(description="Reflections to remember for the next round")
 
 
 class State(Enum):
@@ -84,26 +112,8 @@ def run(ctx: AgentContent) -> None:
     print(f"[run] finished at round={ctx.current_round}")
 
 
-def _parse_json_from_model(text: str, stage: str) -> dict:
-    payload = text.strip()
-    if payload.startswith("```"):
-        lines = payload.splitlines()
-        if len(lines) >= 3 and lines[-1].strip() == "```":
-            payload = "\n".join(lines[1:-1]).strip()
-            if payload.lower().startswith("json"):
-                payload = payload[4:].strip()
-    try:
-        data = json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{stage} stage output is not valid JSON: {text}") from exc
-    if not isinstance(data, dict):
-        raise ValueError(f"{stage} stage output must be a JSON object")
-    return data
-
-
 def _image_to_bgr(image: ImageContent) -> np.ndarray:
-    image_bytes = base64.b64decode(image.source)
-    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    image_array = np.frombuffer(image.source, dtype=np.uint8)
     bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
     if bgr is None:
         raise ValueError("failed to decode image content")
@@ -122,9 +132,9 @@ def handle_analyze(ctx: AgentContent) -> State:
 
     prompt = TextContent(text=ctx.prompt_lib["start"].render(memory=memory))
     analyze_input = Message(content=[prompt, image])
-    res = ctx.analyzer.generate(analyze_input)
+    res = ctx.analyzer.generate_struct(analyze_input, schema=AnalyzeOutput)
 
-    data = _parse_json_from_model(res.text, "analyze")
+    data = json.loads(res.text)
     print("[analyze] model output parsed")
     print(f"[analyze] target={data.get('target', '')}")
     print(f"[analyze] prompt={data.get('nano_banana_prompt', '')}")
@@ -209,8 +219,8 @@ def handle_evaluate(ctx: AgentContent) -> State:
     evaluate_input = Message(
         content=[TextContent(text=prompt_text), ctx.original_image, ctx.current_image]
     )
-    res = ctx.analyzer.generate(evaluate_input)
-    data = _parse_json_from_model(res.text, "evaluate")
+    res = ctx.analyzer.generate_struct(evaluate_input, schema=EvaluateOutput)
+    data = json.loads(res.text)
     print("[evaluate] llm evaluation parsed")
     print(
         "[evaluate] scores "
@@ -245,8 +255,8 @@ def handle_reflect(ctx: AgentContent) -> State:
         max_round=str(ctx.max_round),
     )
     reflect_input = Message(content=[TextContent(text=prompt_text)])
-    res = ctx.analyzer.generate(reflect_input)
-    data = _parse_json_from_model(res.text, "reflect")
+    res = ctx.analyzer.generate_struct(reflect_input, schema=ReflectOutput)
+    data = json.loads(res.text)
 
     decision = str(data.get("decision", "")).strip().lower()
     memory = str(data.get("memory", "")).strip()
@@ -277,10 +287,14 @@ def handle_reflect(ctx: AgentContent) -> State:
 
 
 ctx = AgentContent(
-    input_path="../../workspace/U45_32/in.png",
-    output_dir="../../workspace/U45_32/",
-    analyzer=create_llm("openai/kimi-k2.5", "openai"),
-    editor=create_llm("gemini-3-pro-image-preview", "gemini"),
+    input_path="../../workspace/U45_1/in.png",
+    output_dir="../../workspace/U45_1/",
+    analyzer=OpenAILLM(
+        "kimi-k2.5",
+        api_key=os.getenv("KIMI_API_KEY"),
+        base_url=os.getenv("KIMI_API_BASE"),
+    ),
+    editor=GeminiLLM("gemini-3-pro-image-preview"),
     prompt_lib=PromptLib("./prompts/"),
 )
 
