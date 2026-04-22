@@ -32,18 +32,18 @@ def evaluate_single_image(image_path: str) -> None:
 if __name__ == "__main__":
     # 在此处硬编码输入图片路径
     # 您可以根据需要修改此处的路径
-    img1 = "../../workspace/U45_32/nb.png"
+    img1 = "../../workspace/U45_1/nb.png"
 
     evaluate_single_image(img1)
 
-    img2 = "../../workspace/U45_32/round_1_out.jpg"
+    img2 = "../../workspace/U45_1/round_1_out.jpg"
 
     evaluate_single_image(img2)
 
-    img3 = "../../workspace/U45_32/round_2_out.jpg"
+    img3 = "../../workspace/U45_1/round_2_out.jpg"
 
     evaluate_single_image(img3)
 
-    img4 = "../../workspace/U45_32/round_3_out.jpg"
+    img4 = "../../workspace/U45_1/round_3_out.jpg"
 
     evaluate_single_image(img4)
