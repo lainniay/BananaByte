@@ -1,8 +1,7 @@
 import os
 
-import cv2
-
 from agents.zjc.calculate import calculate_uciqe, calculate_uiqm
+from core.schemas import ImageContent
 
 
 def evaluate_single_image(image_path: str) -> None:
@@ -11,13 +10,8 @@ def evaluate_single_image(image_path: str) -> None:
         print(f"Error: 文件不存在 -> {image_path}")
         return
 
-    # 使用 cv2 读取图片 (BGR 格式)
-    img = cv2.imread(image_path)
-    if img is None:
-        print(f"Error: 无法读取图片 -> {image_path}")
-        return
+    img = ImageContent.from_file(image_path)
 
-    # 计算指标
     uciqe_val = calculate_uciqe(img)
     uiqm_val = calculate_uiqm(img)
 
@@ -32,18 +26,6 @@ def evaluate_single_image(image_path: str) -> None:
 if __name__ == "__main__":
     # 在此处硬编码输入图片路径
     # 您可以根据需要修改此处的路径
-    img1 = "../../workspace/U45_1/nb.png"
+    img1 = "../../workspace/U45_32/nb.png"
 
     evaluate_single_image(img1)
-
-    img2 = "../../workspace/U45_1/round_1_out.jpg"
-
-    evaluate_single_image(img2)
-
-    img3 = "../../workspace/U45_1/round_2_out.jpg"
-
-    evaluate_single_image(img3)
-
-    img4 = "../../workspace/U45_1/round_3_out.jpg"
-
-    evaluate_single_image(img4)

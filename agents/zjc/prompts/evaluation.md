@@ -44,6 +44,7 @@ Evaluate the restored image following these steps strictly in order:
 Output strictly in the following JSON format. Output raw JSON directly, without any extra explanations, greetings, or markdown code blocks (do not use ``` ```).
 
 Binary scoring only:
+
 - 0 = Fail / Not acceptable
 - 1 = Pass / Acceptable
 

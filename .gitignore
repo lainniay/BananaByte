@@ -6,6 +6,7 @@ wheels/
 *.egg-info
 
 .obsidian/
+.markdownlint.json
 
 # Byte-compiled / optimized / DLL files
 *.py[codz]

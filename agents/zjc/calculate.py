@@ -7,19 +7,27 @@ import numpy as np
 from scipy import ndimage
 from skimage import transform
 
+from core.schemas import ImageContent
+
+
+def _decode(image: ImageContent) -> np.ndarray:
+    image_array = np.frombuffer(image.source, dtype=np.uint8)
+    bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    if bgr is None:
+        raise ValueError("failed to decode image content")
+    return bgr
+
 
 def calculate_uciqe(
-    img: np.ndarray,
+    img: ImageContent,
     crop_border: int = 0,
-    input_order: str = "HWC",
 ) -> float:
     """Calculate the UCIQE metric for an image."""
-    if input_order == "CHW":
-        img = img.transpose(1, 2, 0)
+    arr = _decode(img)
     if crop_border > 0:
-        img = img[crop_border:-crop_border, crop_border:-crop_border, ...]
+        arr = arr[crop_border:-crop_border, crop_border:-crop_border, ...]
 
-    img_bgr = img if img.shape[2] == 3 else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    img_bgr = arr if arr.shape[2] == 3 else cv2.cvtColor(arr, cv2.COLOR_GRAY2BGR)
 
     img_lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
     coe_metric = [0.4680, 0.2745, 0.2576]
@@ -167,29 +175,22 @@ def _uism(img: np.ndarray) -> float:
 
 
 def calculate_uiqm(
-    img: np.ndarray,
+    img: ImageContent,
     crop_border: int = 0,
-    input_order: str = "HWC",
-    return_submetrics: bool = False,
-) -> float | tuple[float, float, float, float]:
+) -> float:
     """Calculate the UIQM metric for an image."""
-    if input_order == "CHW":
-        img = img.transpose(1, 2, 0)
+    arr = _decode(img)
     if crop_border > 0:
-        img = img[crop_border:-crop_border, crop_border:-crop_border, ...]
+        arr = arr[crop_border:-crop_border, crop_border:-crop_border, ...]
 
-    if img.shape[2] != 3:
-        img = np.stack([img[..., 0]] * 3, axis=-1)
+    if arr.shape[2] != 3:
+        arr = np.stack([arr[..., 0]] * 3, axis=-1)
 
-    img = img.astype(np.float32)
+    arr = arr.astype(np.float32)
     c1, c2, c3 = 0.0282, 0.2953, 3.5753
 
-    uicm_val = _uicm(img)
-    uism_val = _uism(img)
-    uiconm_val = _uiconm(img)
+    uicm_val = _uicm(arr)
+    uism_val = _uism(arr)
+    uiconm_val = _uiconm(arr)
 
-    uiqm_total = c1 * uicm_val + c2 * uism_val + c3 * uiconm_val
-
-    if return_submetrics:
-        return uiqm_total, uicm_val, uism_val, uiconm_val
-    return uiqm_total
+    return c1 * uicm_val + c2 * uism_val + c3 * uiconm_val

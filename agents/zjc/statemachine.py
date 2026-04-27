@@ -4,8 +4,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-import cv2
-import numpy as np
 from pydantic import BaseModel, Field
 
 from agents.zjc.calculate import calculate_uciqe, calculate_uiqm
@@ -112,14 +110,6 @@ def run(ctx: AgentContent) -> None:
     print(f"[run] finished at round={ctx.current_round}")
 
 
-def _image_to_bgr(image: ImageContent) -> np.ndarray:
-    image_array = np.frombuffer(image.source, dtype=np.uint8)
-    bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-    if bgr is None:
-        raise ValueError("failed to decode image content")
-    return bgr
-
-
 def handle_analyze(ctx: AgentContent) -> State:
     """Analyze the image and generate a restoration prompt."""
     memory = "No previous experience. This is the first restoration round."
@@ -187,23 +177,14 @@ def handle_evaluate(ctx: AgentContent) -> State:
         raise ValueError("no current image for evaluate stage")
 
     if ctx.original_uiqm is None or ctx.original_uciqe is None:
-        original_bgr = _image_to_bgr(ctx.original_image)
-        original_uiqm = calculate_uiqm(original_bgr)
-        if not isinstance(original_uiqm, float):
-            raise ValueError("calculate_uiqm returned unexpected submetrics tuple")
-        ctx.original_uiqm = original_uiqm
-        ctx.original_uciqe = calculate_uciqe(original_bgr)
+        ctx.original_uiqm = calculate_uiqm(ctx.original_image)
+        ctx.original_uciqe = calculate_uciqe(ctx.original_image)
 
-    current_bgr = _image_to_bgr(ctx.current_image)
-    current_uiqm = calculate_uiqm(current_bgr)
-    if not isinstance(current_uiqm, float):
-        raise ValueError("calculate_uiqm returned unexpected submetrics tuple")
-    current_uciqe = calculate_uciqe(current_bgr)
+    ctx.current_uiqm = calculate_uiqm(ctx.current_image)
+    ctx.current_uciqe = calculate_uciqe(ctx.current_image)
 
-    ctx.current_uiqm = current_uiqm
-    ctx.current_uciqe = current_uciqe
-    ctx.uiqm_history.append(current_uiqm)
-    ctx.uciqe_history.append(current_uciqe)
+    ctx.uiqm_history.append(ctx.current_uiqm)
+    ctx.uciqe_history.append(ctx.current_uciqe)
     print(
         "[evaluate] metrics "
         f"original(uiqm={ctx.original_uiqm:.6f}, uciqe={ctx.original_uciqe:.6f}) -> "
