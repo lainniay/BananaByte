@@ -36,9 +36,7 @@ class EvaluationResponse(BaseModel):
 
     hallucination: Hallucination
     quality_metrics: QualityMetrics
-    overall_score: int = Field(
-        ge=0, le=5, description="综合评分, 0-5 整数"
-    )
+    overall_score: int = Field(ge=0, le=5, description="综合评分, 0-5 整数")
     final_verdict: str = Field(description="总结整个评估结果并给出最终结论")
 
 
