@@ -155,6 +155,7 @@ dependencies = [
     { name = "rich" },
     { name = "ruff" },
     { name = "scikit-image" },
+    { name = "tenacity" },
 ]
 
 [package.dev-dependencies]
@@ -176,6 +177,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "ruff", specifier = ">=0.15.9" },
     { name = "scikit-image", specifier = ">=0.26.0" },
+    { name = "tenacity", specifier = ">=9.1.4" },
 ]
 
 [package.metadata.requires-dev]
