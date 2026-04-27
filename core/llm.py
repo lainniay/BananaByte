@@ -1,15 +1,74 @@
 import base64
+import logging
 import os
+from collections.abc import Callable
 from typing import Annotated, Any, Literal, TypeVar, cast
 
-from dotenv import load_dotenv
 from google import genai
+from google.genai.errors import ServerError
 from google.genai.types import ContentListUnionDict, HttpOptions
-from openai import OpenAI
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    OpenAI,
+    RateLimitError,
+)
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
+from tenacity import (
+    Retrying,
+    before_sleep_log,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from core.schemas import ImageContent, Message, TextContent
+
+logger = logging.getLogger(__name__)
+
+
+_OPENAI_RETRYABLE = (
+    RateLimitError,
+    InternalServerError,
+    APITimeoutError,
+    APIConnectionError,
+)
+_GEMINI_RETRYABLE = (ServerError,)
+
+
+def _ensure_list(messages: Message | list[Message]) -> list[Message]:
+    """将单个消息或消息列表规范化为列表."""
+    return messages if isinstance(messages, list) else [messages]
+
+
+def _call_with_retry[T](
+    max_retries: int,
+    retryable: tuple,
+    fn: Callable[[], T],
+) -> T:
+    """带指数退避重试的 API 调用包裹器.
+
+    Args:
+        max_retries: 最大重试次数.
+        retryable: 可重试的异常类型元组.
+        fn: 无参可调用对象, 返回 API 响应.
+
+    Returns:
+        API 调用结果.
+    """
+    for attempt in Retrying(
+        stop=stop_after_attempt(max_retries),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception(lambda e: isinstance(e, retryable)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    ):
+        with attempt:
+            return fn()
+    raise RuntimeError("unreachable")  # pragma: no cover
+
 
 StructuredOutput = TypeVar("StructuredOutput", bound=BaseModel)
 
@@ -90,6 +149,7 @@ class OpenAILLM:
         api_key: str | None = None,
         base_url: str | None = None,
         timeout: float = 120,
+        max_retries: int = 3,
     ) -> None:
         """初始化 OpenAI LLM 客户端.
 
@@ -98,19 +158,45 @@ class OpenAILLM:
             api_key: API 密钥. 如果为 None, 从环境变量 OPENAI_API_KEY 读取.
             base_url: API 基础 URL. 如果为 None, 从环境变量 OPENAI_API_BASE 读取.
             timeout: 请求超时时间, 单位是秒.
+            max_retries: 最大重试次数, 默认 3.
 
         Raises:
             ValueError: 当 API 密钥缺失时.
         """
         super().__init__()
         self.model = model
-        load_dotenv()
+        self.max_retries = max_retries
         api_key = api_key or os.getenv("OPENAI_API_KEY", "")
         base_url = base_url or os.getenv("OPENAI_API_BASE", "")
         if not api_key:
             raise ValueError("OPENAI_API_KEY 环境变量缺失")
         self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
-        return
+
+    _RETRYABLE = _OPENAI_RETRYABLE
+
+    def _retry[T](self, fn: Callable[[], T]) -> T:
+        """带重试的 API 调用包裹器."""
+        return _call_with_retry(self.max_retries, self._RETRYABLE, fn)
+
+    def _prepare_messages(
+        self,
+        messages: Message | list[Message],
+        system_prompt: str | None = None,
+    ) -> list:
+        """规范化消息列表并可选插入 system prompt.
+
+        Args:
+            messages: 单个消息或消息列表.
+            system_prompt: 系统指令.
+
+        Returns:
+            list: OpenAI 格式的消息列表.
+        """
+        messages = _ensure_list(messages)
+        openai_mes = [msg.to_openai_format() for msg in messages]
+        if system_prompt:
+            openai_mes.insert(0, {"role": "system", "content": system_prompt})
+        return openai_mes
 
     def generate(
         self,
@@ -128,21 +214,15 @@ class OpenAILLM:
         Returns:
             Message: LLM 生成的响应消息, 角色为 "model".
         """
-        if isinstance(messages, Message):
-            messages = [messages]
-
-        openai_mes = [message.to_openai_format() for message in messages]
-
-        if system_prompt:
-            openai_mes.insert(0, {"role": "system", "content": system_prompt})
-
+        openai_mes = self._prepare_messages(messages, system_prompt)
         kwargs = self.__translate_generate(config) if config else {}
-        res = self.client.chat.completions.create(
-            messages=cast(list[ChatCompletionMessageParam], openai_mes),
-            model=self.model,
-            **kwargs,
+        res = self._retry(
+            lambda: self.client.chat.completions.create(
+                messages=cast(list[ChatCompletionMessageParam], openai_mes),
+                model=self.model,
+                **kwargs,
+            ),
         )
-
         content = res.choices[0].message.content or ""
         return Message(role="model", content=content)
 
@@ -167,21 +247,15 @@ class OpenAILLM:
         Raises:
             ValueError: 当模型拒绝生成或无法解析输出时.
         """
-        if isinstance(messages, Message):
-            messages = [messages]
-
-        openai_mes = [message.to_openai_format() for message in messages]
-
-        if system_prompt:
-            openai_mes.insert(0, {"role": "system", "content": system_prompt})
-
+        openai_mes = self._prepare_messages(messages, system_prompt)
         kwargs = self.__translate_generate(config) if config else {}
-
-        res = self.client.chat.completions.parse(
-            messages=cast(list[ChatCompletionMessageParam], openai_mes),
-            model=self.model,
-            response_format=schema,
-            **kwargs,
+        res = self._retry(
+            lambda: self.client.chat.completions.parse(
+                messages=cast(list[ChatCompletionMessageParam], openai_mes),
+                model=self.model,
+                response_format=schema,
+                **kwargs,
+            ),
         )
 
         message = res.choices[0].message
@@ -211,8 +285,7 @@ class OpenAILLM:
         Raises:
             ValueError: 当没有传入图片、prompt 为空或 API 未返回结果时.
         """
-        if isinstance(messages, Message):
-            messages = [messages]
+        messages = _ensure_list(messages)
 
         images: list[ImageContent] = []
         prompt_parts: list[str] = []
@@ -232,15 +305,16 @@ class OpenAILLM:
             raise ValueError("没有传入图像编辑提示词")
 
         kwargs = self.__translate_edit_image(config) if config else {}
-        res = self.client.images.edit(
-            image=[
-                self.__to_openai_file(image, f"image_{index}")
-                for index, image in enumerate(images)
-            ],
-            prompt=prompt,
-            model=self.model,
-            response_format="b64_json",
-            **kwargs,
+        res = self._retry(
+            lambda: self.client.images.edit(
+                image=[
+                    self.__to_openai_file(image, f"image_{index}")
+                    for index, image in enumerate(images)
+                ],
+                prompt=prompt,
+                model=self.model,
+                **kwargs,
+            ),
         )
 
         if not res.data:
@@ -400,6 +474,7 @@ class GeminiLLM:
         api_key: str | None = None,
         base_url: str | None = None,
         timeout: int = 120 * 1000,
+        max_retries: int = 3,
     ) -> None:
         """初始化 Gemini LLM 客户端.
 
@@ -408,20 +483,44 @@ class GeminiLLM:
             api_key: API 密钥. 如果为 None, 从环境变量 GEMINI_API_KEY 读取.
             base_url: API 基础 URL. 如果为 None, 从环境变量 GEMINI_API_BASE 读取.
             timeout: 请求超时时间, 单位是毫秒.
+            max_retries: 最大重试次数, 默认 3.
 
         Raises:
             ValueError: 当 API 密钥缺失时.
         """
         super().__init__()
         self.model = model
-        load_dotenv()
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-        self.base_url = base_url or os.getenv("GEMINI_API_BASE", "")
-        if not self.api_key:
+        self.max_retries = max_retries
+        api_key = api_key or os.getenv("GEMINI_API_KEY", "")
+        base_url = base_url or os.getenv("GEMINI_API_BASE", "")
+        if not api_key:
             raise ValueError("GEMINI_API_KEY 环境变量缺失")
         self.client = genai.Client(
-            api_key=self.api_key,
-            http_options=HttpOptions(base_url=self.base_url, timeout=timeout),
+            api_key=api_key,
+            http_options=HttpOptions(base_url=base_url, timeout=timeout),
+        )
+
+    _RETRYABLE = _GEMINI_RETRYABLE
+
+    def _retry[T](self, fn: Callable[[], T]) -> T:
+        """带重试的 API 调用包裹器."""
+        return _call_with_retry(self.max_retries, self._RETRYABLE, fn)
+
+    def _normalize_messages(
+        self, messages: Message | list[Message]
+    ) -> ContentListUnionDict:
+        """规范化消息为 Gemini 格式.
+
+        Args:
+            messages: 单个消息或消息列表.
+
+        Returns:
+            ContentListUnionDict: Gemini 格式的消息列表.
+        """
+        messages = _ensure_list(messages)
+        return cast(
+            ContentListUnionDict,
+            [msg.to_gemini_format() for msg in messages],
         )
 
     def generate(
@@ -440,18 +539,14 @@ class GeminiLLM:
         Returns:
             Message: LLM 生成的响应消息, 角色为 "model".
         """
-        if isinstance(messages, Message):
-            messages = [messages]
-
-        gemini_mes: ContentListUnionDict = cast(
-            ContentListUnionDict, [msg.to_gemini_format() for msg in messages]
-        )
-
+        gemini_mes = self._normalize_messages(messages)
         gen_config = self.__translate_generate(config, system_prompt=system_prompt)
-        res = self.client.models.generate_content(
-            model=self.model,
-            contents=gemini_mes,
-            config=gen_config,
+        res = self._retry(
+            lambda: self.client.models.generate_content(
+                model=self.model,
+                contents=gemini_mes,
+                config=gen_config,
+            ),
         )
         return Message(role="model", content=res.text or "")
 
@@ -480,22 +575,18 @@ class GeminiLLM:
         Raises:
             ValueError: 当模型未返回有效内容时.
         """
-        if isinstance(messages, Message):
-            messages = [messages]
-
-        gemini_mes: ContentListUnionDict = cast(
-            ContentListUnionDict, [msg.to_gemini_format() for msg in messages]
-        )
-
+        gemini_mes = self._normalize_messages(messages)
         gen_config = self.__translate_generate(
             config,
             system_prompt=system_prompt,
             extra={"response_mime_type": "application/json", "response_schema": schema},
         )
-        res = self.client.models.generate_content(
-            model=self.model,
-            contents=gemini_mes,
-            config=gen_config,
+        res = self._retry(
+            lambda: self.client.models.generate_content(
+                model=self.model,
+                contents=gemini_mes,
+                config=gen_config,
+            ),
         )
 
         content = res.text
@@ -522,24 +613,19 @@ class GeminiLLM:
         Raises:
             ValueError: 当消息中没有图像时.
         """
-        if isinstance(messages, Message):
-            messages = [messages]
-
-        has_image = any(len(msg.images) > 0 for msg in messages)
-        if not has_image:
+        messages = _ensure_list(messages)
+        if not any(msg.images for msg in messages):
             raise ValueError("没有传入图片")
 
-        gemini_mes: ContentListUnionDict = cast(
-            ContentListUnionDict, [msg.to_gemini_format() for msg in messages]
-        )
-
+        gemini_mes = self._normalize_messages(messages)
         cfg = config or GeminiLLM.EditImageConfig()
         _, gen_config = self.__translate_edit_image(cfg, system_prompt)
-
-        res = self.client.models.generate_content(
-            model=self.model,
-            contents=gemini_mes,
-            config=gen_config,
+        res = self._retry(
+            lambda: self.client.models.generate_content(
+                model=self.model,
+                contents=gemini_mes,
+                config=gen_config,
+            ),
         )
 
         contents: list[TextContent | ImageContent] = []
@@ -620,17 +706,15 @@ class GeminiLLM:
                 - image_config_kwargs: 供调用方按需构造 genai.types.ImageConfig.
                 - gen_config: 构造好的生成配置对象.
         """
-        image_config_kwargs: dict[str, Any] = {}
         _image_fields = {
             "aspect_ratio",
             "image_size",
             "output_mime_type",
             "output_compression_quality",
         }
-        for field in type(config).model_fields:
-            value = getattr(config, field)
-            if value is not None and field in _image_fields:
-                image_config_kwargs[field] = value
+        image_config_kwargs: dict[str, Any] = config.model_dump(
+            include=_image_fields, exclude_none=True
+        )
 
         image_config = (
             genai.types.ImageConfig(**image_config_kwargs)

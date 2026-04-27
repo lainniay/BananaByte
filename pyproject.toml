@@ -2,21 +2,21 @@
 name = "BananaByte"
 version = "0.1.0"
 description = "Add your description here"
-readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "datasets>=4.8.4",
-    "google-genai>=1.70.0",
-    "huggingface-hub[cli]>=1.9.0",
-    "langsmith>=0.7.30",
-    "openai>=2.32.0",
-    "opencv-python>=4.13.0.92",
-    "pydantic>=2.12.5",
-    "python-dotenv>=1.0.1",
-    "pyyaml>=6.0.3",
-    "rich>=14.3.3",
-    "ruff>=0.15.9",
-    "scikit-image>=0.26.0",
+  "datasets>=4.8.4",
+  "google-genai>=1.70.0",
+  "huggingface-hub[cli]>=1.9.0",
+  "langsmith>=0.7.30",
+  "openai>=2.32.0",
+  "opencv-python>=4.13.0.92",
+  "pydantic>=2.12.5",
+  "python-dotenv>=1.0.1",
+  "pyyaml>=6.0.3",
+  "rich>=14.3.3",
+  "ruff>=0.15.9",
+  "scikit-image>=0.26.0",
+  "tenacity>=9.1.4",
 ]
 
 [build-system]
@@ -42,16 +42,16 @@ target-version = "py313"
 select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "RUF", "ANN", "D"]
 
 ignore = [
-    "E501",
-    "B008",
-    "ANN002",
-    "ANN003",
-    "ANN401",
-    "D100",
-    "D104",
-    "D107",
-    "RUF003",
-    "RUF001",
+  "E501",
+  "B008",
+  "ANN002",
+  "ANN003",
+  "ANN401",
+  "D100",
+  "D104",
+  "D107",
+  "RUF003",
+  "RUF001",
 ]
 
 per-file-ignores = { "tests/**/*" = ["D", "ANN"], "main.py" = ["D101", "D103"] }

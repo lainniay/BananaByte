@@ -18,6 +18,15 @@ llm = OpenAILLM("kimi-k2.5")
 llm = GeminiLLM("gemini-3.1-pro-preview", api_key=os.getenv("GEMINI_API"), base_url="os.getenv("GEMINI_BASE"))
 ```
 
+可以通过 `max_retries: int` 参数来配置生成回复时重试的次数, 从而防止因为偶发的网络问题导致的 Agent 中断, `max_retries` 的默认参数为 3.
+
+如果因为网络问题导致重试, 会打印出 WARNING 等级的日志, 可以使用 `core.setup_rich_logging` 来获得比较美观的打印输出, 只需要调用一次即可.
+
+```python
+# 使用 rich 库打印日志, 并将日志等级设置为 DEBUG
+setup_rich_logging(level=logging.DEBUG)
+```
+
 ## 输入输出接口
 
 > 两种 LLM 的输入输出接口是一样的, 因此这里使用 OpenAILLM 作为例子.
