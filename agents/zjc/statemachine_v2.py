@@ -6,7 +6,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal, cast
 
-from dotenv import load_dotenv
 from rich.console import Console
 from rich.json import JSON
 from rich.panel import Panel
@@ -263,7 +262,7 @@ def handle_reflect(ctx: AgentContent) -> State:
         "ContrastReduction",
         "TextureBlurring",
     ]
-    ctx.cur_branchs = [branch for branch in all_branches if branch != best_branch]
+    ctx.cur_branchs = [branch for branch in ctx.cur_branchs if branch != best_branch]
 
     for branch in all_branches:
         ctx.candidates[branch] = None
@@ -271,6 +270,9 @@ def handle_reflect(ctx: AgentContent) -> State:
         ctx.analyzes[branch] = ""
 
     ctx.cur_round += 1
+
+    if len(ctx.cur_branchs) == 0:
+        return State.DONE
 
     # 未达最低轮数, 强制执行下一轮
     if not should_continue and ctx.cur_round < ctx.min_round:
@@ -290,8 +292,8 @@ def handle_reflect(ctx: AgentContent) -> State:
     if reasoning:
         console.print(f"  [dim italic]{reasoning}[/]")
 
-    if not should_continue or ctx.cur_round >= ctx.max_round:
-        return State.DONE
+    # if not should_continue or ctx.cur_round >= ctx.max_round:
+    # return State.DONE
     return State.ANALYZE
 
 
@@ -311,8 +313,6 @@ def handle_done(ctx: AgentContent) -> State:
     return State.DONE
 
 
-load_dotenv()
-
 llm = GeminiLLM(
     "gemini-3.1-flash-lite-preview",
     api_key=os.getenv("OPENAI_API_KEY"),
@@ -321,8 +321,8 @@ llm = GeminiLLM(
 
 
 ctx = AgentContent(
-    input_path="../../workspace/U45_32/in.png",
-    output_dir="../../workspace/U45_32/",
+    input_path="../../workspace/LSUI_2376/in.jpg",
+    output_dir="../../workspace/LSUI_2376/",
     analyzer=llm,
     editor=GeminiLLM("gemini-3.1-flash-image-preview", timeout=1200 * 1000),
     evaluator=GeminiLLM(
