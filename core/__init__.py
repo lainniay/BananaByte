@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from core.llm import GeminiLLM, OpenAILLM
 from core.prompt import Prompt, PromptLib
 from core.schemas import ImageContent, Message, TextContent
-from core.state import State
+from core.state import BaseState
 
 load_dotenv()
 
@@ -35,13 +35,13 @@ def setup_rich_logging(level: int = logging.WARNING) -> None:
 __version__ = "0.1.0"
 
 __all__ = [
+    "BaseState",
     "GeminiLLM",
     "ImageContent",
     "Message",
     "OpenAILLM",
     "Prompt",
     "PromptLib",
-    "State",
     "TextContent",
     "setup_rich_logging",
 ]

@@ -8,6 +8,7 @@ dependencies = [
   "google-genai>=1.70.0",
   "huggingface-hub[cli]>=1.9.0",
   "langsmith>=0.7.30",
+  "msgpack>=1.1.2",
   "openai>=2.32.0",
   "opencv-python>=4.13.0.92",
   "pydantic>=2.12.5",
