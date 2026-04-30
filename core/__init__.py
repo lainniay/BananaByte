@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from core.llm import GeminiLLM, OpenAILLM
 from core.prompt import Prompt, PromptLib
 from core.schemas import ImageContent, Message, TextContent
+from core.state import State
 
 load_dotenv()
 
@@ -40,6 +41,7 @@ __all__ = [
     "OpenAILLM",
     "Prompt",
     "PromptLib",
+    "State",
     "TextContent",
     "setup_rich_logging",
 ]
