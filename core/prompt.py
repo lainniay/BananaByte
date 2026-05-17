@@ -45,7 +45,6 @@ class Prompt(BaseModel):
             ValueError: 当缺少模板所需变量时.
         """
         required = self.variables
-        required_set = set(required)
         provided_set = set(kwargs.keys())
         missing = [name for name in required if name not in provided_set]
         if missing:
@@ -53,11 +52,9 @@ class Prompt(BaseModel):
                 f"缺少必要的模板变量: {missing}. 该模板需要变量: {required}"
             )
 
-        payload = {key: value for key, value in kwargs.items() if key in required_set}
-
         def _replace(match: re.Match[str]) -> str:
             field_name = match.group(1)
-            return payload.get(field_name, match.group(0))
+            return kwargs[field_name]
 
         return _VAR_RE.sub(_replace, self.template)
 

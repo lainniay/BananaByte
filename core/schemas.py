@@ -1,12 +1,14 @@
 import base64
 import mimetypes
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import BaseModel
 
 
-class ImageContent(BaseModel):
+@dataclass(slots=True)
+class ImageContent:
     """图像内容模型.
 
     使用二进制存储图像数据.
@@ -18,9 +20,9 @@ class ImageContent(BaseModel):
 
     """
 
-    type: Literal["image"] = "image"
     source: bytes
     mime_type: str = "image/png"
+    type: Literal["image"] = "image"
 
     @classmethod
     def from_base64(cls, data: str, mime_type: str = "image/png") -> Self:
@@ -72,7 +74,8 @@ class ImageContent(BaseModel):
         return output_path
 
 
-class TextContent(BaseModel):
+@dataclass(slots=True)
+class TextContent:
     """文本内容模型.
 
     Attributes:
@@ -80,11 +83,12 @@ class TextContent(BaseModel):
         text: 文本内容.
     """
 
-    type: Literal["text"] = "text"
     text: str
+    type: Literal["text"] = "text"
 
 
-class Message(BaseModel):
+@dataclass(slots=True)
+class Message:
     """消息模型, 表示对话中的一条消息.
 
     支持纯文本消息和多模态消息 (文本 + 图像).
@@ -94,8 +98,8 @@ class Message(BaseModel):
         content: 消息内容, 可以是字符串或内容列表 (TextContent/ImageContent).
     """
 
-    role: Literal["user", "model"] = "user"
     content: str | list[TextContent | ImageContent]
+    role: Literal["user", "model"] = "user"
 
     @property
     def text(self) -> str:
@@ -132,47 +136,16 @@ class Message(BaseModel):
             return [TextContent(text=self.content)]
         return self.content
 
-    def to_gemini_format(self) -> dict:
-        """转换为 Gemini API 格式.
+    def parse_as[T: BaseModel](self, schema: type[T]) -> T:
+        """将消息文本解析为指定的 Pydantic 模型.
+
+        Args:
+            schema: 用于校验和解析消息文本的 Pydantic 模型类型.
 
         Returns:
-            dict: Gemini API 格式的消息字典, 包含 "role" 和 "parts" 字段.
+            解析后的 Pydantic 模型实例.
+
+        Raises:
+            pydantic.ValidationError: 当消息文本不是合法 JSON 或不符合 schema 时.
         """
-        if isinstance(self.content, str):
-            return {"role": self.role, "parts": [{"text": self.content}]}
-
-        parts = []
-        for item in self.content:
-            if item.type == "text":
-                parts.append({"text": item.text})
-            elif item.type == "image":
-                parts.append(
-                    {"inline_data": {"mime_type": item.mime_type, "data": item.source}}
-                )
-        return {"role": self.role, "parts": parts}
-
-    def to_openai_format(self) -> dict:
-        """转换为 OpenAI API 格式.
-
-        Returns:
-            dict: OpenAI API 格式的消息字典, 包含 "role" 和 "content" 字段.
-                角色 "model" 会被转换为 "assistant".
-        """
-        role = "assistant" if self.role == "model" else self.role
-        if isinstance(self.content, str):
-            return {"role": role, "content": self.content}
-
-        content = []
-        for item in self.content:
-            if item.type == "text":
-                content.append({"type": "text", "text": item.text})
-            elif item.type == "image":
-                content.append(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{item.mime_type};base64,{base64.b64encode(item.source).decode('utf-8')}"
-                        },
-                    }
-                )
-        return {"role": role, "content": content}
+        return schema.model_validate_json(self.text)
