@@ -1,6 +1,6 @@
 import os
 
-from agents.zjc.calculate import calculate_uciqe, calculate_uiqm
+from agents.zjc.v2.calculate import calculate_uciqe, calculate_uiqm
 from core.schemas import ImageContent
 
 
