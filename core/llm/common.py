@@ -14,12 +14,12 @@ from core.schemas import Message
 logger = logging.getLogger("core.llm")
 
 
-def _ensure_list(messages: Message | list[Message]) -> list[Message]:
+def ensure_list(messages: Message | list[Message]) -> list[Message]:
     """将单个消息或消息列表规范化为列表."""
     return messages if isinstance(messages, list) else [messages]
 
 
-def _call_with_retry[T](
+def call_with_retry[T](
     max_retries: int,
     retryable: tuple,
     fn: Callable[[], T],
