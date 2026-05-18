@@ -18,7 +18,7 @@ from core.llm.adapters import (
     message_to_openai,
     tool_to_openai,
 )
-from core.llm.common import _call_with_retry, _ensure_list
+from core.llm.common import call_with_retry, ensure_list
 from core.llm.tool import Tool
 from core.schemas import ImageContent, Message, TextContent
 
@@ -129,7 +129,7 @@ class OpenAILLM:
 
     def _retry[T](self, fn: Callable[[], T]) -> T:
         """带重试的 API 调用包裹器."""
-        return _call_with_retry(self.max_retries, self._RETRYABLE, fn)
+        return call_with_retry(self.max_retries, self._RETRYABLE, fn)
 
     def _prepare_messages(
         self,
@@ -145,7 +145,7 @@ class OpenAILLM:
         Returns:
             list: OpenAI 格式的消息列表.
         """
-        messages = _ensure_list(messages)
+        messages = ensure_list(messages)
         openai_mes = [message_to_openai(msg) for msg in messages]
         if system_prompt:
             openai_mes.insert(0, {"role": "system", "content": system_prompt})
@@ -415,7 +415,7 @@ class OpenAILLM:
         Raises:
             ValueError: 当没有传入图片、prompt 为空或 API 未返回结果时.
         """
-        messages = _ensure_list(messages)
+        messages = ensure_list(messages)
 
         images: list[ImageContent] = []
         prompt_parts: list[str] = []

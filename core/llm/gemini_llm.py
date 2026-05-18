@@ -20,7 +20,7 @@ from core.llm.adapters import (
     message_to_gemini,
     tool_to_gemini,
 )
-from core.llm.common import _call_with_retry, _ensure_list
+from core.llm.common import call_with_retry, ensure_list
 from core.llm.tool import Tool
 from core.schemas import ImageContent, Message, TextContent
 
@@ -135,7 +135,7 @@ class GeminiLLM:
 
     def _retry[T](self, fn: Callable[[], T]) -> T:
         """带重试的 API 调用包裹器."""
-        return _call_with_retry(self.max_retries, self._RETRYABLE, fn)
+        return call_with_retry(self.max_retries, self._RETRYABLE, fn)
 
     def _normalize_messages(
         self, messages: Message | list[Message]
@@ -148,7 +148,7 @@ class GeminiLLM:
         Returns:
             ContentListUnionDict: Gemini 格式的消息列表.
         """
-        messages = _ensure_list(messages)
+        messages = ensure_list(messages)
         return cast(
             ContentListUnionDict,
             [message_to_gemini(msg) for msg in messages],
@@ -367,7 +367,7 @@ class GeminiLLM:
         Raises:
             ValueError: 当消息中没有图像时.
         """
-        messages = _ensure_list(messages)
+        messages = ensure_list(messages)
         if not any(msg.images for msg in messages):
             raise ValueError("没有传入图片")
 
@@ -466,7 +466,7 @@ class GeminiLLM:
         """将内部消息转换为 Gemini 工具调用循环使用的 Content 列表."""
         return [
             Content.model_validate(message_to_gemini(msg))
-            for msg in _ensure_list(messages)
+            for msg in ensure_list(messages)
         ]
 
     @staticmethod
