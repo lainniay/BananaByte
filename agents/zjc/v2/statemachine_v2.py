@@ -11,8 +11,8 @@ from rich.json import JSON
 from rich.panel import Panel
 from rich.table import Table
 
-from agents.zjc import calculate
-from agents.zjc.format import Analyze, EvaluationResponse, ReflectResponse
+from agents.zjc.v2 import calculate
+from agents.zjc.v2.format import Analyze, EvaluationResponse, ReflectResponse
 from core import GeminiLLM, ImageContent, PromptLib
 from core.schemas import Message, TextContent
 

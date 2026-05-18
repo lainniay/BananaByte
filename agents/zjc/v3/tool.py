@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 
@@ -29,3 +30,8 @@ success, encoded_img = cv2.imencode(".png", fixed)
 if success:
     with open("../../../workspace/U45_1/color.png", "wb") as f:
         f.write(encoded_img.tobytes())
+
+# @tool(description="Adjusts the color balance of an image. Specifically, it extracts the Red (R), Green (G), and Blue (B) channels of each pixel and multiplies them by user-specified coefficients to change the overall color tone of the image.")
+# def adjust_color_balance(
+#         img:Annotated[ImageContent, Field(description="The input image")]
+# ) -> ImageContent:

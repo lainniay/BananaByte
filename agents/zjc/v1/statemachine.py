@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
-from agents.zjc.calculate import calculate_uciqe, calculate_uiqm
+from agents.zjc.v2.calculate import calculate_uciqe, calculate_uiqm
 from core.llm import GeminiLLM, OpenAILLM
 from core.prompt import PromptLib
 from core.schemas import ImageContent, Message, TextContent
