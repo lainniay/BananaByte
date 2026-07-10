@@ -58,7 +58,9 @@ def apply_channel_luts(
     """Apply interactive edit-color LUT settings to an OpenCV BGR image."""
     overlap = set(enhance_gains) & set(reduce_gains)
     if overlap:
-        raise ValueError(f"channels cannot be both enhanced and reduced: {sorted(overlap)}")
+        raise ValueError(
+            f"channels cannot be both enhanced and reduced: {sorted(overlap)}"
+        )
 
     channels = list(cv2.split(bgr))
 
@@ -67,7 +69,9 @@ def apply_channel_luts(
         channels[index] = cv2.LUT(channels[index], _build_enhance_soft_knee_lut(gain))
     for channel, gain in reduce_gains.items():
         index = _CHANNEL_INDEX[channel]
-        channels[index] = cv2.LUT(channels[index], _build_reduce_reverse_soft_knee_lut(gain))
+        channels[index] = cv2.LUT(
+            channels[index], _build_reduce_reverse_soft_knee_lut(gain)
+        )
 
     return cv2.merge(channels)
 
@@ -107,7 +111,9 @@ def _make_single_channel_image(bgr: np.ndarray, channel: str) -> np.ndarray:
 
 def _show_rgb_channels(bgr: np.ndarray) -> None:
     for channel in _RGB_CHANNELS:
-        cv2.imshow(f"{channel.upper()} Channel", _make_single_channel_image(bgr, channel))
+        cv2.imshow(
+            f"{channel.upper()} Channel", _make_single_channel_image(bgr, channel)
+        )
     cv2.waitKey(1)
 
 

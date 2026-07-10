@@ -21,7 +21,9 @@ def plot_edit_color_curves(  # noqa : D103
     values = np.linspace(0, 255, 2048)
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(values, values, color="black", linestyle="--", linewidth=1, label="identity")
+    ax.plot(
+        values, values, color="black", linestyle="--", linewidth=1, label="identity"
+    )
 
     for gain in enhance_gains:
         curve = build_enhance_curve(values, gain)

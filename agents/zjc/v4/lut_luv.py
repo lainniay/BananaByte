@@ -58,7 +58,9 @@ def apply_luv_luts(
     """Apply interactive LUV U/V LUT settings to an OpenCV BGR image."""
     overlap = set(enhance_gains) & set(reduce_gains)
     if overlap:
-        raise ValueError(f"channels cannot be both enhanced and reduced: {sorted(overlap)}")
+        raise ValueError(
+            f"channels cannot be both enhanced and reduced: {sorted(overlap)}"
+        )
 
     luv = cv2.cvtColor(bgr, cv2.COLOR_BGR2LUV)
     channels = list(cv2.split(luv))
@@ -68,7 +70,9 @@ def apply_luv_luts(
         channels[index] = cv2.LUT(channels[index], _build_enhance_soft_knee_lut(gain))
     for channel, gain in reduce_gains.items():
         index = _CHANNEL_INDEX[channel]
-        channels[index] = cv2.LUT(channels[index], _build_reduce_reverse_soft_knee_lut(gain))
+        channels[index] = cv2.LUT(
+            channels[index], _build_reduce_reverse_soft_knee_lut(gain)
+        )
 
     adjusted_luv = cv2.merge(channels)
     return cv2.cvtColor(adjusted_luv, cv2.COLOR_LUV2BGR)

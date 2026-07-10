@@ -61,7 +61,9 @@ def apply_lab_luts(
     """Apply interactive LAB A/B offset and LUT settings to an OpenCV BGR image."""
     overlap = set(enhance_gains) & set(reduce_gains)
     if overlap:
-        raise ValueError(f"channels cannot be both enhanced and reduced: {sorted(overlap)}")
+        raise ValueError(
+            f"channels cannot be both enhanced and reduced: {sorted(overlap)}"
+        )
 
     lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB)
     channels = list(cv2.split(lab))
@@ -75,7 +77,9 @@ def apply_lab_luts(
         channels[index] = cv2.LUT(channels[index], _build_enhance_soft_knee_lut(gain))
     for channel, gain in reduce_gains.items():
         index = _CHANNEL_INDEX[channel]
-        channels[index] = cv2.LUT(channels[index], _build_reduce_reverse_soft_knee_lut(gain))
+        channels[index] = cv2.LUT(
+            channels[index], _build_reduce_reverse_soft_knee_lut(gain)
+        )
 
     adjusted_lab = cv2.merge(channels)
     return cv2.cvtColor(adjusted_lab, cv2.COLOR_LAB2BGR)
@@ -88,7 +92,9 @@ def _ask_float(prompt: str, default: float) -> float:
     return float(raw)
 
 
-def _ask_channel_settings() -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
+def _ask_channel_settings() -> tuple[
+    dict[str, float], dict[str, float], dict[str, float]
+]:
     channel_offsets: dict[str, float] = {}
     enhance_gains: dict[str, float] = {}
     reduce_gains: dict[str, float] = {}

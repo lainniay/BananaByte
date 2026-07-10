@@ -61,7 +61,9 @@ def apply_hsv_luts(
     """Apply interactive HSV LUT settings to an OpenCV BGR image."""
     overlap = set(enhance_gains) & set(reduce_gains)
     if overlap:
-        raise ValueError(f"channels cannot be both enhanced and reduced: {sorted(overlap)}")
+        raise ValueError(
+            f"channels cannot be both enhanced and reduced: {sorted(overlap)}"
+        )
 
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     channels = list(cv2.split(hsv))
@@ -69,11 +71,15 @@ def apply_hsv_luts(
     for channel, gain in enhance_gains.items():
         index = _CHANNEL_INDEX[channel]
         max_value = _CHANNEL_MAX_VALUE[channel]
-        channels[index] = cv2.LUT(channels[index], _build_enhance_soft_knee_lut(gain, max_value))
+        channels[index] = cv2.LUT(
+            channels[index], _build_enhance_soft_knee_lut(gain, max_value)
+        )
     for channel, gain in reduce_gains.items():
         index = _CHANNEL_INDEX[channel]
         max_value = _CHANNEL_MAX_VALUE[channel]
-        channels[index] = cv2.LUT(channels[index], _build_reduce_reverse_soft_knee_lut(gain, max_value))
+        channels[index] = cv2.LUT(
+            channels[index], _build_reduce_reverse_soft_knee_lut(gain, max_value)
+        )
 
     adjusted_hsv = cv2.merge(channels)
     return cv2.cvtColor(adjusted_hsv, cv2.COLOR_HSV2BGR)
