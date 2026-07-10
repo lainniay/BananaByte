@@ -56,6 +56,10 @@ class Content(BaseState):  # noqa : D101
     channel_completion_max_weight: float = 0.5
     channel_completion_weight_gamma: float = 0.65
     channel_completion_candidate_gain: float = 1.15
+    channel_completion_missing_threshold: float = 0.35
+    channel_completion_low_frequency_sigma: float = 12.0
+    channel_completion_candidate_min_value: float = 2.0
+    channel_completion_candidate_max_value: float = 253.0
     chroma_base_ab_weight: float = 0.6
     chroma_target_ab_gain: float = 1.05
     dehaze_l_weight: float = 0.2
@@ -165,6 +169,10 @@ def handle_complete_color(ctx: Content) -> State:  # noqa : D103
         max_weight=ctx.channel_completion_max_weight,
         weight_gamma=ctx.channel_completion_weight_gamma,
         candidate_gain=ctx.channel_completion_candidate_gain,
+        missing_threshold=ctx.channel_completion_missing_threshold,
+        low_frequency_sigma=ctx.channel_completion_low_frequency_sigma,
+        candidate_min_value=ctx.channel_completion_candidate_min_value,
+        candidate_max_value=ctx.channel_completion_candidate_max_value,
     )
     completed_path = (
         f"{ctx.output_dir}/round_{ctx.cur_round}_{raw}_channel_completed"
@@ -469,6 +477,10 @@ def blend_completed_rgb_channel(
     max_weight: float,
     weight_gamma: float,
     candidate_gain: float,
+    missing_threshold: float,
+    low_frequency_sigma: float,
+    candidate_min_value: float,
+    candidate_max_value: float,
 ) -> ImageContent:
     """Blend a completed RGB channel back with a missing-information mask."""
     if channel not in {"r", "g", "b"}:
@@ -479,6 +491,14 @@ def blend_completed_rgb_channel(
         raise ValueError("weight_gamma must be positive")
     if candidate_gain <= 0:
         raise ValueError("candidate_gain must be positive")
+    if not 0 <= missing_threshold <= 1:
+        raise ValueError("missing_threshold must be between 0 and 1")
+    if low_frequency_sigma < 0:
+        raise ValueError("low_frequency_sigma must be non-negative")
+    if not 0 <= candidate_min_value <= candidate_max_value <= 255:
+        raise ValueError(
+            "candidate values must satisfy 0 <= min <= max <= 255",
+        )
 
     bgr = _decode_bgr(image)
     completed = _decode_gray(completed_channel)
@@ -488,18 +508,35 @@ def blend_completed_rgb_channel(
 
     channel_index = {"b": 0, "g": 1, "r": 2}[channel]
     original = bgr[:, :, channel_index].astype(np.float32)
-    candidate = completed.astype(np.float32) * candidate_gain
+    completed_low_frequency = smooth_completed_channel(
+        completed,
+        sigma=low_frequency_sigma,
+    )
+    candidate = completed_low_frequency.astype(np.float32) * candidate_gain
 
     weight = create_channel_completion_weight(
         bgr,
         channel_index=channel_index,
         max_weight=max_weight,
         gamma=weight_gamma,
+        missing_threshold=missing_threshold,
     )
+    candidate_mask = (completed_low_frequency >= candidate_min_value) & (
+        completed_low_frequency <= candidate_max_value
+    )
+    weight = np.where(candidate_mask, weight, 0.0)
+
     blended = original * (1 - weight) + candidate * weight
     bgr[:, :, channel_index] = np.clip(blended, 0, 255).astype(np.uint8)
 
     return _encode_bgr(bgr, image.mime_type)
+
+
+def smooth_completed_channel(completed: np.ndarray, *, sigma: float) -> np.ndarray:
+    """Keep only low-frequency color prior from a generated channel."""
+    if sigma == 0:
+        return completed
+    return cv2.GaussianBlur(completed, (0, 0), sigma)
 
 
 def create_channel_completion_weight(
@@ -508,10 +545,13 @@ def create_channel_completion_weight(
     channel_index: int,
     max_weight: float,
     gamma: float,
+    missing_threshold: float,
 ) -> np.ndarray:
     """Create a stronger blend mask where the selected channel is relatively weak."""
     if gamma <= 0:
         raise ValueError("gamma must be positive")
+    if not 0 <= missing_threshold <= 1:
+        raise ValueError("missing_threshold must be between 0 and 1")
 
     bgr_float = bgr.astype(np.float32)
     selected = bgr_float[:, :, channel_index]
@@ -529,9 +569,11 @@ def create_channel_completion_weight(
     absolute_missing = 1 - np.clip(selected / selected_scale, 0, 1)
 
     missing = np.maximum(relative_missing, 0.5 * absolute_missing)
+    trusted_missing = missing >= missing_threshold
     missing = np.power(np.clip(missing, 0, 1), gamma)
     missing = cv2.GaussianBlur(missing, (0, 0), 2)
-    return max_weight * np.clip(missing, 0, 1)
+    weight = max_weight * np.clip(missing, 0, 1)
+    return np.where(trusted_missing, weight, 0.0)
 
 
 def merge_l_with_blended_ab(
@@ -630,10 +672,10 @@ def _encode_gray(img: np.ndarray) -> ImageContent:
 
 def main() -> None:  # noqa: D103
     ctx = Content(
-        editor=GeminiLLM("gemini-3.1-flash-image-preview"),
+        editor=GeminiLLM("gemini-3-pro-image-preview"),
         prompt_lib=PromptLib("./prompt/"),
-        input_path="../../../workspace/Severe/2/in.png",
-        output_dir="../../../workspace/Slight/2",
+        input_path="../../../workspace/Slight/13/in.png",
+        output_dir="../../../workspace/Slight/13",
     )
 
     run(ctx)

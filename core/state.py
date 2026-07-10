@@ -5,7 +5,7 @@
 """
 
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 import msgpack
 from pydantic import BaseModel
@@ -19,14 +19,17 @@ class BaseState(BaseModel):
     适合包含 ``ImageContent.source`` 等二进制数据的模型.
     """
 
-    def save(self, path: str | Path) -> Path:
+    def save(self, path: str | Path, exclude: Any | None = None) -> Path:
         """将模型状态序列化为 MessagePack 文件.
 
-        使用 ``model_dump()`` 获取 Python 原生数据, 再由 ``msgpack``
-        打包为二进制格式写入磁盘. 自动创建目标路径上的父目录.
+        使用 ``model_dump(exclude=exclude)`` 获取 Python 原生数据,
+        再由 ``msgpack`` 打包为二进制格式写入磁盘.
+        自动创建目标路径上的父目录.
 
         Args:
             path: 目标文件路径, 建议使用 ``.msgpack`` 后缀.
+            exclude: 传给 ``model_dump()`` 的排除规则, 用于跳过
+                ``PromptLib`` 或 LLM 客户端等不可序列化的运行时对象.
 
         Returns:
             Path: 保存后的文件路径.
@@ -36,7 +39,7 @@ class BaseState(BaseModel):
         """
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        data = self.model_dump()
+        data = self.model_dump(exclude=exclude)
         with open(output, "wb") as f:
             msgpack.pack(data, f)
         return output
