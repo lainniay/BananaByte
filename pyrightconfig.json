@@ -1,0 +1,16 @@
+{
+  "include": ["core", "tests", "agents"],
+  "exclude": [
+    "**/__pycache__",
+    ".git",
+    ".ruff_cache",
+    ".venv",
+    "workspace"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Darwin",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": false
+}

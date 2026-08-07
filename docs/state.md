@@ -10,7 +10,7 @@
 
 ```python
 class BaseState(BaseModel):
-    def save(self, path: str | Path) -> Path: ...
+    def save(self, path: str | Path, exclude: Any | None = None) -> Path: ...
 
     @classmethod
     def load(cls, path: str | Path) -> Self: ...
@@ -20,7 +20,7 @@ class BaseState(BaseModel):
 
 - `BaseState` 继承自 Pydantic `BaseModel`.
 - 子类可以定义自己的状态字段.
-- `save()` 使用 `model_dump()` 得到 Python 原生数据, 然后写入 MessagePack 文件.
+- `save()` 使用 `model_dump(exclude=exclude)` 得到 Python 原生数据, 然后写入 MessagePack 文件.
 - `load()` 从 MessagePack 文件读取数据, 然后通过 `model_validate()` 恢复实例.
 - MessagePack 原生支持 `bytes`, 适合保存图片二进制数据或其他中间产物.
 
@@ -31,7 +31,7 @@ class BaseState(BaseModel):
 接口:
 
 ```python
-save(path: str | Path) -> Path
+save(path: str | Path, exclude: Any | None = None) -> Path
 ```
 
 说明:
@@ -39,6 +39,8 @@ save(path: str | Path) -> Path
 - 将当前状态保存到文件.
 - 如果父目录不存在, 会自动创建.
 - 建议使用 `.msgpack` 后缀.
+- `exclude` 会透传给 Pydantic `model_dump()`, 可用于排除 `PromptLib`, LLM 客户端等不可被 MessagePack 序列化的运行时对象.
+- 如果排除了必填字段, `load()` 时仍会按模型校验并报缺失字段; 这类运行时字段应设为可选或带默认值, 恢复后再重新构造并注入.
 - 文件无法写入时会抛出 `OSError`.
 
 ## load
