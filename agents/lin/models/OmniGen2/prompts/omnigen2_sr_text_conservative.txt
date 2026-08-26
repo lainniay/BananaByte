@@ -1,0 +1,3 @@
+Restore and upscale this image while preserving its visible content exactly.
+Treat every visible character, word, number, logo, and sign as immutable visual content. Preserve each glyph shape, stroke, spacing, position, color, font style, and layout exactly as shown in the input. Do not infer, correct, rewrite, translate, replace, complete, or add any text.
+Remove blur, noise, compression artifacts, and aliasing while preserving the original scene, geometry, composition, colors, objects, and identity. Do not add or remove objects and do not redesign the image. Return only the restored high-resolution image.

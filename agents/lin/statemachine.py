@@ -1,6 +1,7 @@
 ﻿import json
 import io
 import os
+import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -17,8 +18,6 @@ from core.schemas import ImageContent, Message, TextContent
 from agents.lin.metrics import evaluate as calc_metrics
 
 
-import cv2
-import numpy as np
 from PIL import ImageFilter
 
 
@@ -59,6 +58,7 @@ class AgentContent:
     analyzer: OpenAILLM | GeminiLLM
     editor: GeminiLLM
     prompt_lib: PromptLib
+    ground_truth_path: str | None = None
 
     original_image: ImageContent | None = None
     current_image: ImageContent | None = None
@@ -335,12 +335,15 @@ def handle_eval(ctx: AgentContent) -> State:
     if ctx.original_image is None or ctx.current_image is None:
         raise ValueError("缺少图像")
 
-    original_pil=_ic_to_pil(ctx.original_image)
     current_pil=_ic_to_pil(ctx.current_image)
 
     #有参考指标
     lr_path=Path(ctx.input_path)
-    hr_path=lr_path.parent/"HR"/lr_path.name
+    hr_path=(
+        Path(ctx.ground_truth_path)
+        if ctx.ground_truth_path
+        else lr_path.parent.parent/"HR"/lr_path.name
+    )
     gt_pil=Image.open(hr_path).convert("RGB") if hr_path.exists() else None
     scores=calc_metrics(current_pil,ground_truth=gt_pil)
 
@@ -425,25 +428,32 @@ def handle_reflect(ctx: AgentContent) -> State:
 
 
 if __name__ == "__main__":
-    base=Path(__file__).parents[2]/"workspace/SR/AllCharac"
-    input_path=base/"LR"/"DSC_1326_x1.png"
-    tag="scheme2_iterative_alpha_0.20"
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
+    base=Path(__file__).parents[2]/"workspace/SR/COLLECT"
     editor_timeout_ms=int(os.getenv("LIN_GEMINI_TIMEOUT_MS", "600000"))
     edit_retry_attempts=int(os.getenv("LIN_EDIT_RETRY_ATTEMPTS", "2"))
 
-    ctx = AgentContent(
-        input_path=str(input_path),
-        output_dir=str(base/"outputs"/input_path.stem/tag),
-        analyzer=OpenAILLM("gpt-5.1"),
-        editor=GeminiLLM("gemini-3-pro-image-preview", timeout=editor_timeout_ms),
-        prompt_lib=PromptLib(Path(__file__).parent / "prompts"),
-        use_text_mask=True,
-        use_text_fusion=True,
-        text_fusion_alpha=0.2,
-        use_fidelity=True,
-        use_progressive=True,
-        edit_retry_attempts=edit_retry_attempts,
-    )
-    run(ctx)
+    analyzer=OpenAILLM("gpt-5.1")
+    editor=GeminiLLM("gemini-3-pro-image-preview", timeout=editor_timeout_ms)
+    prompt_lib=PromptLib(Path(__file__).parent / "prompts")
+
+    stems=os.getenv("LIN_IMAGE_STEMS", "IMG_003,IMG_009").split(",")
+    for stem in stems:
+        input_path=base/"LR_256"/f"{stem}.png"
+        ctx = AgentContent(
+            input_path=str(input_path),
+            output_dir=str(base/"outputs"/stem),
+            analyzer=analyzer,
+            editor=editor,
+            prompt_lib=prompt_lib,
+            use_text_mask=False,
+            use_text_fusion=False,
+            use_fidelity=False,
+            use_progressive=False,
+            edit_retry_attempts=edit_retry_attempts,
+        )
+        run(ctx)
 
 

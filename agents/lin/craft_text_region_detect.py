@@ -39,7 +39,7 @@ def default_input_dir() -> Path:
 
 
 def default_output_dir() -> Path:
-    return repo_root() / "workspace" / "SR" / "AllCharac" / "craft_text_regions"
+    return repo_root() / "workspace" / "SR" / "AllCharac" / "outputs"
 
 
 def check_runtime_dependencies() -> None:
@@ -247,7 +247,7 @@ def save_outputs(
     raw_region_count: int,
     args: argparse.Namespace,
 ) -> None:
-    image_output_dir = output_root / image_path.stem
+    image_output_dir = output_root / image_path.stem / "text_regions" / "craft"
     image_output_dir.mkdir(parents=True, exist_ok=True)
 
     original_path = image_output_dir / "original.png"
